@@ -5,6 +5,8 @@
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/*
+// @updateURL    https://github.com/ozxslackin/handiFix/raw/main/main.js
+// @downloadURL  https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @grant        none
 // ==/UserScript==
 
