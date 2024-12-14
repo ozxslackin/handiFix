@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         守护每位书局人的双手
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1
+// @version      0.1.1
 // @description  批量创建X定时文本
 // @author       ozxslackin
-// @match        https://x.com/*
+// @match        https://x.com/home
 // @updateURL    https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @downloadURL  https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @grant        none
@@ -334,7 +334,7 @@
             const month = (time.getMonth() + 1).toString();
             const day = time.getDate().toString();
             const year = time.getFullYear().toString();
-            const hour = time.getHours().toString().padStart(2, '0');
+            const hour = time.getHours();
             const minute = time.getMinutes();
 
             // 模拟选择操作
