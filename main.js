@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         守护每位书局人的双手
+// @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
 // @version      0.1.1
 // @description  批量创建X定时文本
