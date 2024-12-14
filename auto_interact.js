@@ -358,7 +358,11 @@
     async function addComment(article) {
         // 随机选择一条评论
         const randomComment = commentConfig.comments[Math.floor(Math.random() * commentConfig.comments.length)];
-        const suffixes = commentConfig.suffixes.join(' ');
+
+        // 处理后缀，保持换行并在每行末尾添加空格
+        const suffixes = commentConfig.suffixes
+            .map(line => line.trim() + ' ')
+            .join('\n');
 
         // 随机选择开头和结尾的emoji
         let startEmoji = '';
