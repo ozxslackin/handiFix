@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.1
+// @version      0.1.2
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
@@ -216,7 +216,7 @@
 
                     try {
                         await simulateScheduleTweet(tweetContent, tweetTime);
-                        await sleep(2000);
+                        await sleep(Math.floor(Math.random() * 301) + 1800);
                     } catch (error) {
                         console.error(`第 ${i + 1} 条推文发送失败:`, error);
                         const continuePosting = confirm(`第 ${i + 1} 条推文发送失败。是否继续发送剩余推文？`);
@@ -243,7 +243,7 @@
             const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
             if (!tweetButton) throw new Error('未找到发推按钮');
             tweetButton.click();
-            await sleep(1000);
+            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 2. 填写内容
             const editorDiv = document.querySelector('[data-testid="tweetTextarea_0"]');
@@ -251,7 +251,7 @@
 
             // 聚焦编辑器
             editorDiv.focus();
-            await sleep(100);
+            await sleep(Math.floor(Math.random() * 121) + 80);
 
             // 将内容分割成字符数组，特殊处理换行符
             const chars = Array.from(content);
@@ -303,16 +303,16 @@
                     editorDiv.dispatchEvent(keyupEvent);
                 }
 
-                await sleep(10);
+                await sleep(Math.floor(Math.random() * 81) + 20);
             }
 
-            await sleep(500);
+            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 3. 点击定时图标
             const scheduleIcon = document.querySelector('[data-testid="scheduleOption"]');
             if (!scheduleIcon) throw new Error('未找到定时图标');
             scheduleIcon.click();
-            await sleep(1000);
+            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 4. 设置日期和时间
             // 获取所有选择器并按ID排序
@@ -345,7 +345,7 @@
                     select.value = value.toString();
                 }
                 select.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(200);
+                await sleep(Math.floor(Math.random() * 201) + 180);
             };
 
             await setSelectValue(monthSelect, month);
@@ -354,19 +354,19 @@
             await setSelectValue(hourSelect, hour);
             await setSelectValue(minuteSelect, minute);
 
-            await sleep(1000);
+            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 5. 点击确认按钮
             const confirmButton = document.querySelector('[data-testid="scheduledConfirmationPrimaryAction"]');
             if (!confirmButton) throw new Error('未找到确认按钮');
             confirmButton.click();
-            await sleep(1000);
+            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 6. 点击发送推文按钮
             const sendTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
             if (!sendTweetButton) throw new Error('未找到发送按钮');
             sendTweetButton.click();
-            await sleep(1000);
+            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 显示成功消息
             const options = {

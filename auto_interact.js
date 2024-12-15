@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         守护书局人之一键互动
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.0
-// @description  X站帖子自动化互动（评论->转发->点赞）
+// @version      0.1.1
+// @description  X站帖子自动化互动（点赞->转发->评论）
 // @author       ozxslackin
 // @match        https://x.com/*
 // @updateURL    https://github.com/ozxslackin/handiFix/raw/main/auto_interact.js
@@ -325,7 +325,7 @@
             const likeBtn = article.querySelector('[data-testid="like"]');
             if (likeBtn && !likeBtn.querySelector('[data-testid="liked"]')) {
                 await clickButton(likeBtn);
-                await sleep(500);
+                await sleep(Math.floor(Math.random() * 401) + 300);
             }
 
             // 2. 转发
@@ -333,13 +333,13 @@
             if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
                 // 点击转发按钮打开菜单
                 await clickButton(retweetBtn);
-                await sleep(1000);
+                await sleep(Math.floor(Math.random() * 1201) + 800);
 
                 // 点击"转帖"选项
                 const retweetOption = document.querySelector('[data-testid="retweetConfirm"]');
                 if (retweetOption) {
                     await clickButton(retweetOption);
-                    await sleep(1000);
+                    await sleep(Math.floor(Math.random() * 1201) + 800);
                 } else {
                     console.warn('未找到转帖选项');
                 }
@@ -377,7 +377,7 @@
         // 点击回复按钮
         const replyBtn = article.querySelector('[data-testid="reply"]');
         await clickButton(replyBtn);
-        await sleep(1000);
+        await sleep(Math.floor(Math.random() * 1201) + 800);
 
         // 找到评论输入框
         const editor = document.querySelector('[data-testid="tweetTextarea_0"]');
@@ -386,7 +386,7 @@
         // 输入评论内容
         editor.focus();
         await simulateTyping(editor, fullComment);
-        await sleep(500);
+        await sleep(Math.floor(Math.random() * 401) + 300);
 
         // 点击发送按钮
         const sendBtn = document.querySelector('[data-testid="tweetButton"]');
@@ -408,7 +408,7 @@
             } else {
                 document.execCommand('insertText', false, char);
             }
-            await sleep(10);
+            await sleep(Math.floor(Math.random() * 81) + 10);
         }
     }
 
@@ -416,7 +416,7 @@
     async function clickButton(button) {
         if (!button) throw new Error('按钮未找到');
         button.click();
-        await sleep(500);
+        await sleep(Math.floor(Math.random() * 401) + 300);
     }
 
     function sleep(ms) {
