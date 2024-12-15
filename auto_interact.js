@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之一键互动
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.1
+// @version      0.1.2
 // @description  X站帖子自动化互动（点赞->转发->评论）
 // @author       ozxslackin
 // @match        https://x.com/*
@@ -13,11 +13,19 @@
 (function() {
     'use strict';
 
+    let interactionMode = localStorage.getItem('ozxInteractionMode') || 'comment'; // 'comment' 或 'quote'
+
+    // 保存模式设置的函数
+    function saveInteractionMode(mode) {
+        interactionMode = mode;
+        localStorage.setItem('ozxInteractionMode', mode);
+    }
+
     // 修改样式，添加特定前缀
     const style = document.createElement('style');
     style.textContent = `
         .ozx-interact-btn {
-            position: fixed;
+            position: relative;
             width: 34px;
             height: 34px;
             background: #1d9bf0;
@@ -28,13 +36,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-            z-index: 1000;
-        }
-
-        .ozx-interact-btn:hover {
-            opacity: 1 !important;
         }
 
         .ozx-comment-config-btn {
@@ -107,6 +108,35 @@
             margin-top: -8px;
             margin-bottom: 12px;
         }
+
+        .ozx-button-group {
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .ozx-button-group:hover {
+            opacity: 1 !important;
+        }
+
+        .ozx-mode-btn {
+            position: relative;
+            width: 34px;
+            height: 34px;
+            background: #794bc4;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
     `;
     document.head.appendChild(style);
 
@@ -205,48 +235,73 @@
     function addInteractButton(article) {
         if (article.dataset.ozxProcessed) return;
         if (!isValidArticle(article)) return;
-        if (article.querySelector('.ozx-interact-btn')) return;
+        if (article.querySelector('.ozx-button-group')) return;
 
         const container = article.closest('[data-testid="cellInnerDiv"]');
         if (!container) return;
 
-        const btn = document.createElement('button');
-        btn.className = 'ozx-interact-btn';
-        btn.innerHTML = '⚡';
-        btn.title = '一键互动';
+        // 创建按钮组容器
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'ozx-button-group';
 
-        // 使用事件监听器动态更新按钮位置
+        // 创建一键互动按钮
+        const interactBtn = document.createElement('button');
+        interactBtn.className = 'ozx-interact-btn';
+        interactBtn.innerHTML = '⚡';
+        interactBtn.title = '一键互动';
+
+        // 创建模式切换按钮
+        const modeBtn = document.createElement('button');
+        modeBtn.className = 'ozx-mode-btn';
+        modeBtn.innerHTML = interactionMode === 'comment' ? '💬' : '🔄';
+        modeBtn.title = interactionMode === 'comment' ? '当前：评论模式' : '当前：引用模式';
+
+        // 添加按钮到按钮组
+        buttonGroup.appendChild(modeBtn);
+        buttonGroup.appendChild(interactBtn);
+
+        // 更新按钮组位置的函数
         const updateButtonPosition = () => {
             const rect = article.getBoundingClientRect();
-            btn.style.top = `${rect.top + rect.height/2 - 17}px`; // 17 是按钮高度的一半
-            btn.style.left = `${rect.right + 10}px`;
-            btn.style.opacity = article.matches(':hover') ? '1' : '0';
+            buttonGroup.style.top = `${rect.top + rect.height/2 - 38}px`; // 调整位置以适应两个按钮
+            buttonGroup.style.left = `${rect.right + 10}px`;
+            buttonGroup.style.opacity = article.matches(':hover') ? '1' : '0';
         };
 
         // 初始定位
         updateButtonPosition();
 
-        // 监听滚动和调整大小事件
+        // 事件监听
         window.addEventListener('scroll', updateButtonPosition, { passive: true });
         window.addEventListener('resize', updateButtonPosition, { passive: true });
 
-        // 监听鼠标进入离开事件
         article.addEventListener('mouseenter', () => {
-            btn.style.opacity = '1';
+            buttonGroup.style.opacity = '1';
         });
         article.addEventListener('mouseleave', () => {
-            btn.style.opacity = '0';
+            buttonGroup.style.opacity = '0';
         });
 
-        document.body.appendChild(btn);
-        btn.addEventListener('click', () => handleInteraction(article));
+        // 模式切换按钮点击事件
+        modeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const newMode = interactionMode === 'comment' ? 'quote' : 'comment';
+            saveInteractionMode(newMode);
+            modeBtn.innerHTML = newMode === 'comment' ? '💬' : '🔄';
+            modeBtn.title = newMode === 'comment' ? '当前：评论模式' : '当前：引用模式';
+        });
+
+        // 一键互动按钮点击事件
+        interactBtn.addEventListener('click', () => handleInteraction(article));
+
+        document.body.appendChild(buttonGroup);
         article.dataset.ozxProcessed = 'true';
 
         // 清理函数
         const cleanup = () => {
             window.removeEventListener('scroll', updateButtonPosition);
             window.removeEventListener('resize', updateButtonPosition);
-            btn.remove();
+            buttonGroup.remove();
         };
 
         // 创建 MutationObserver 监听文章元素是否被移除
@@ -325,33 +380,75 @@
             const likeBtn = article.querySelector('[data-testid="like"]');
             if (likeBtn && !likeBtn.querySelector('[data-testid="liked"]')) {
                 await clickButton(likeBtn);
-                await sleep(Math.floor(Math.random() * 401) + 300);
+                await sleep(Math.floor(Math.random() * 201) + 300);
             }
 
-            // 2. 转发
-            const retweetBtn = article.querySelector('[data-testid="retweet"]');
-            if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
-                // 点击转发按钮打开菜单
-                await clickButton(retweetBtn);
-                await sleep(Math.floor(Math.random() * 1201) + 800);
+            // 2. 根据模式执行不同操作
+            if (interactionMode === 'comment') {
+                // 转发和评论流程
+                const retweetBtn = article.querySelector('[data-testid="retweet"]');
+                if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
+                    await clickButton(retweetBtn);
+                    await sleep(Math.floor(Math.random() * 201) + 300);
 
-                // 点击"转帖"选项
-                const retweetOption = document.querySelector('[data-testid="retweetConfirm"]');
-                if (retweetOption) {
-                    await clickButton(retweetOption);
-                    await sleep(Math.floor(Math.random() * 1201) + 800);
-                } else {
-                    console.warn('未找到转帖选项');
+                    const retweetOption = document.querySelector('[data-testid="retweetConfirm"]');
+                    if (retweetOption) {
+                        await clickButton(retweetOption);
+                        await sleep(Math.floor(Math.random() * 201) + 800);
+                    }
+                }
+                await addComment(article);
+            } else {
+                // 引用流程
+                const retweetBtn = article.querySelector('[data-testid="retweet"]');
+                if (retweetBtn) {
+                    await clickButton(retweetBtn);
+                    await sleep(Math.floor(Math.random() * 201) + 300);
+
+                    const quoteOption = document.querySelector('a[role="menuitem"]');
+                    if (quoteOption) {
+                        await clickButton(quoteOption);
+                        await sleep(Math.floor(Math.random() * 201) + 800);
+                        await addQuote();
+                    }
                 }
             }
-
-            // 3. 评论
-            await addComment(article);
-
         } catch (error) {
             console.error('互动过程出错:', error);
             alert('互动过程出错: ' + error.message);
         }
+    }
+
+    // 添加引用处理函数
+    async function addQuote() {
+        // 随机选择一条评论作为引用内容
+        const randomComment = commentConfig.comments[Math.floor(Math.random() * commentConfig.comments.length)];
+        const suffixes = commentConfig.suffixes
+            .map(line => line.trim() + ' ')
+            .join('\n');
+
+        let startEmoji = '';
+        let endEmoji = '';
+        if (commentConfig.emojis.length > 0) {
+            startEmoji = commentConfig.emojis[Math.floor(Math.random() * commentConfig.emojis.length)] + ' ';
+            endEmoji = ' ' + commentConfig.emojis[Math.floor(Math.random() * commentConfig.emojis.length)];
+        }
+
+        const fullQuote = `${startEmoji}${randomComment}${endEmoji}\n\n${suffixes}`;
+
+        // 找到引用输入框
+        const editor = document.querySelector('[data-testid="tweetTextarea_0"]');
+        if (!editor) throw new Error('未找到引用输入框');
+
+        // 输入引用内容
+        editor.focus();
+        await simulateTyping(editor, fullQuote);
+        await sleep(Math.floor(Math.random() * 201) + 300);
+
+        // 点击发送按钮
+        const sendBtn = document.querySelector('[data-testid="tweetButton"]');
+        if (!sendBtn) throw new Error('未找到发送按钮');
+        await clickButton(sendBtn);
     }
 
     // 添加评论
@@ -377,7 +474,7 @@
         // 点击回复按钮
         const replyBtn = article.querySelector('[data-testid="reply"]');
         await clickButton(replyBtn);
-        await sleep(Math.floor(Math.random() * 1201) + 800);
+        await sleep(Math.floor(Math.random() * 201) + 800);
 
         // 找到评论输入框
         const editor = document.querySelector('[data-testid="tweetTextarea_0"]');
@@ -386,7 +483,7 @@
         // 输入评论内容
         editor.focus();
         await simulateTyping(editor, fullComment);
-        await sleep(Math.floor(Math.random() * 401) + 300);
+        await sleep(Math.floor(Math.random() * 201) + 300);
 
         // 点击发送按钮
         const sendBtn = document.querySelector('[data-testid="tweetButton"]');
@@ -416,7 +513,7 @@
     async function clickButton(button) {
         if (!button) throw new Error('按钮未找到');
         button.click();
-        await sleep(Math.floor(Math.random() * 401) + 300);
+        await sleep(Math.floor(Math.random() * 201) + 300);
     }
 
     function sleep(ms) {
