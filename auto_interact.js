@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         守护书局人之一键互动
+// @name         守护书局人之一键互动（随机版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.2
+// @version      0.1.3
 // @description  X站帖子自动化互动（点赞->转发->评论）
 // @author       ozxslackin
 // @match        https://x.com/*
@@ -123,18 +123,22 @@
             opacity: 1 !important;
         }
 
-        .ozx-mode-btn {
-            position: relative;
-            width: 34px;
-            height: 34px;
+        .ozx-mode-toggle-btn {
+            position: fixed;
+            right: 120px;  /* 位置在评论文本按钮左边 */
+            top: 70px;
+            z-index: 9999;
+            padding: 8px 16px;
             background: #794bc4;
             color: white;
             border: none;
-            border-radius: 50%;
+            border-radius: 9999px;
             cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 6px;
         }
 
     `;
@@ -250,20 +254,13 @@
         interactBtn.innerHTML = '⚡';
         interactBtn.title = '一键互动';
 
-        // 创建模式切换按钮
-        const modeBtn = document.createElement('button');
-        modeBtn.className = 'ozx-mode-btn';
-        modeBtn.innerHTML = interactionMode === 'comment' ? '💬' : '🔄';
-        modeBtn.title = interactionMode === 'comment' ? '当前：评论模式' : '当前：引用模式';
-
         // 添加按钮到按钮组
-        buttonGroup.appendChild(modeBtn);
         buttonGroup.appendChild(interactBtn);
 
         // 更新按钮组位置的函数
         const updateButtonPosition = () => {
             const rect = article.getBoundingClientRect();
-            buttonGroup.style.top = `${rect.top + rect.height/2 - 38}px`; // 调整位置以适应两个按钮
+            buttonGroup.style.top = `${rect.top + rect.height/2 - 17}px`; // 调整位置以适应一个按钮
             buttonGroup.style.left = `${rect.right + 10}px`;
             buttonGroup.style.opacity = article.matches(':hover') ? '1' : '0';
         };
@@ -280,15 +277,6 @@
         });
         article.addEventListener('mouseleave', () => {
             buttonGroup.style.opacity = '0';
-        });
-
-        // 模式切换按钮点击事件
-        modeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const newMode = interactionMode === 'comment' ? 'quote' : 'comment';
-            saveInteractionMode(newMode);
-            modeBtn.innerHTML = newMode === 'comment' ? '💬' : '🔄';
-            modeBtn.title = newMode === 'comment' ? '当前：评论模式' : '当前：引用模式';
         });
 
         // 一键互动按钮点击事件
@@ -519,4 +507,17 @@
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
+
+    // 在创建评论配置按钮的部分后添加模式切换按钮
+    const modeToggleBtn = document.createElement('button');
+    modeToggleBtn.className = 'ozx-mode-toggle-btn';
+    modeToggleBtn.innerHTML = `${interactionMode === 'comment' ? '💬' : '🔄'}`;
+    document.body.appendChild(modeToggleBtn);
+
+    // 添加模式切换按钮的点击事件
+    modeToggleBtn.addEventListener('click', () => {
+        const newMode = interactionMode === 'comment' ? 'quote' : 'comment';
+        saveInteractionMode(newMode);
+        modeToggleBtn.innerHTML = `${newMode === 'comment' ? '💬' : '🔄'}`;
+    });
 })();
