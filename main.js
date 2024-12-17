@@ -113,6 +113,14 @@
             font-size: 13px;
             margin-top: 4px;
         }
+
+        .scheduler-form button.stop-btn {
+            background: #ff7a00;
+        }
+
+        .scheduler-form button.stop-btn:hover {
+            background: #ff6b00;
+        }
     `;
     document.head.appendChild(style);
 
@@ -171,11 +179,29 @@
         }
     });
 
-    // 修改事件处理部分，使用新的ID
+    // 添加状态追踪变量
+    let isGenerating = false;
+    let shouldStop = false;
+
+    // 修改生成按钮的处理逻辑
     const generateBtn = form.querySelector('#scheduler-generateBtn');
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
+            if (isGenerating) {
+                // 如果正在生成，点击按钮则停止
+                shouldStop = true;
+                generateBtn.disabled = true;
+                generateBtn.textContent = '正在停止...';
+                return;
+            }
+
             try {
+                // 设置生成状态
+                isGenerating = true;
+                shouldStop = false;
+                generateBtn.classList.add('stop-btn');
+                generateBtn.textContent = '点击停止';
+
                 const startTimeInput = document.getElementById('scheduler-startTime').value;
                 const startTime = new Date(startTimeInput);
                 const interval = parseInt(document.getElementById('scheduler-interval').value);
@@ -227,6 +253,9 @@
                         await simulateScheduleTweet(tweetContent, tweetTime, tweetIndex);
                         await sleep(Math.floor(Math.random() * 301) + 1800);
                     } catch (error) {
+                        if (error.message === '用户手动停止了操作') {
+                            break;
+                        }
                         console.error(`第 ${i + 1} 条推文发送失败:`, error);
                         const continuePosting = confirm(`第 ${i + 1} 条推文发送失败。是否继续发送剩余推文？`);
                         if (!continuePosting) {
@@ -235,12 +264,26 @@
                     }
                 }
 
-                // 所有推文处理完后，隐藏表单
-                form.style.display = 'none';
+                // 重置按钮状态
+                generateBtn.classList.remove('stop-btn');
+                generateBtn.textContent = '生成定时推文';
+                generateBtn.disabled = false;
+
+                // 如果不是因为手动停止而结束，则隐藏表单
+                if (!shouldStop) {
+                    form.style.display = 'none';
+                }
 
             } catch (error) {
                 console.error('处理推文时出错:', error);
                 alert('处理推文时出错: ' + error.message);
+            } finally {
+                // 重置状态
+                isGenerating = false;
+                shouldStop = false;
+                generateBtn.classList.remove('stop-btn');
+                generateBtn.textContent = '生成定时推文';
+                generateBtn.disabled = false;
             }
         });
     }
@@ -258,14 +301,19 @@
         });
     }
 
-    // 模拟人工操作发布推文
+    // 修改模拟发推文函数，添加停止检查
     async function simulateScheduleTweet(content, time, tweetIndex) {
         try {
+            // 在每个主要步骤前检查是否应该停止
+            if (shouldStop) throw new Error('用户手动停止了操作');
+
             // 1. 点击发推按钮
             const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
             if (!tweetButton) throw new Error('未找到发推按钮');
             tweetButton.click();
             await sleep(Math.floor(Math.random() * 201) + 800);
+
+            if (shouldStop) throw new Error('用户手动停止了操作');
 
             // 2. 如果有图片，先上传图片
             if (selectedImages.length > 0) {
@@ -283,6 +331,8 @@
                 imageInput.dispatchEvent(new Event('change', { bubbles: true }));
                 await sleep(Math.floor(Math.random() * 201) + 1000);
             }
+
+            if (shouldStop) throw new Error('用户手动停止了操作');
 
             // 3. 填写内容
             const editorDiv = document.querySelector('[data-testid="tweetTextarea_0"]');
@@ -346,6 +396,8 @@
             }
 
             await sleep(Math.floor(Math.random() * 201) + 800);
+
+            if (shouldStop) throw new Error('用户手动停止了操作');
 
             // 4. 点击定时图标
             const scheduleIcon = document.querySelector('[data-testid="scheduleOption"]');
@@ -423,8 +475,12 @@
             console.log(`成功设置定时推文：${chinaTimeString}`);
 
         } catch (error) {
-            console.error('设置定时推文失败:', error.message);
-            alert(`设置定时推文失败: ${error.message}`);
+            if (error.message === '用户手动停止了操作') {
+                console.log('操作被用户终止');
+            } else {
+                console.error('设置定时推文失败:', error.message);
+                alert(`设置定时推文失败: ${error.message}`);
+            }
             throw error;
         }
     }
