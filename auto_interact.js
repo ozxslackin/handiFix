@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之一键互动（随机版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.3
+// @version      0.1.4
 // @description  X站帖子自动化互动（点赞->转发->评论）
 // @author       ozxslackin
 // @match        https://x.com/*
@@ -482,18 +482,50 @@
     // 模拟打字
     async function simulateTyping(element, text) {
         const chars = Array.from(text);
+        // 模拟键盘输入
         for (const char of chars) {
+            // 特殊处理换行符
             if (char === '\n') {
                 element.dispatchEvent(new KeyboardEvent('keydown', {
                     key: 'Enter',
                     code: 'Enter',
-                    bubbles: true
+                    bubbles: true,
+                    cancelable: true
                 }));
                 document.execCommand('insertLineBreak');
+                element.dispatchEvent(new KeyboardEvent('keyup', {
+                    key: 'Enter',
+                    code: 'Enter',
+                    bubbles: true,
+                    cancelable: true
+                }));
             } else {
+                // 普通字符的处理
+                element.dispatchEvent(new KeyboardEvent('keydown', {
+                    key: char,
+                    code: `Key${char.toUpperCase()}`,
+                    bubbles: true,
+                    cancelable: true
+                }));
+
+                element.dispatchEvent(new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    data: char,
+                    inputType: 'insertText'
+                }));
+
                 document.execCommand('insertText', false, char);
+
+                element.dispatchEvent(new KeyboardEvent('keyup', {
+                    key: char,
+                    code: `Key${char.toUpperCase()}`,
+                    bubbles: true,
+                    cancelable: true
+                }));
             }
-            await sleep(Math.floor(Math.random() * 81) + 10);
+
+            await sleep(Math.floor(Math.random() * 81) + 20);
         }
     }
 
