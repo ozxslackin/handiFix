@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.3
+// @version      0.1.4
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
@@ -159,12 +159,26 @@
     `;
     document.body.appendChild(form);
 
-    // 设置默认时间（本周六下午8点）
+    // 修改 getNextSaturday 函数
     function getNextSaturday() {
+        // 获取当前时间
         const now = new Date();
-        const nextSaturday = new Date(now);
-        nextSaturday.setDate(now.getDate() + (6 - now.getDay() + 7) % 7);
+
+        // 获取用户时区偏移（分钟）
+        const userOffset = -now.getTimezoneOffset();
+        // 东八区偏移（分钟）
+        const targetOffset = 8 * 60;
+        // 计算时差（分钟）
+        const diffMinutes = targetOffset - userOffset;
+
+        // 计算到下个周六的天数
+        const daysToSaturday = (6 - now.getDay() + 7) % 7;
+        const nextSaturday = new Date(now.getTime() + daysToSaturday * 24 * 60 * 60 * 1000);
+
+        // 设置为晚上8点，并根据时区调整
         nextSaturday.setHours(20, 0, 0, 0);
+        nextSaturday.setMinutes(nextSaturday.getMinutes() - diffMinutes);
+
         return nextSaturday;
     }
 
@@ -173,9 +187,17 @@
         const isVisible = form.style.display === 'block';
         form.style.display = isVisible ? 'none' : 'block';
         if (!isVisible) {
-            // 设置默认时间
-            const defaultTime = getNextSaturday().toISOString().slice(0, 16);
+            // 设置默认时间，使用本地时区格式
+            const defaultTime = getNextSaturday().toLocaleString('sv').replace(' ', 'T').slice(0, 16);
             document.getElementById('scheduler-startTime').value = defaultTime;
+
+            // 显示对应的东八区时间（用于参考）
+            const chinaTime = new Date(getNextSaturday().getTime());
+            const chinaTimeString = chinaTime.toLocaleString('zh-CN', {
+                timeZone: 'Asia/Shanghai',
+                hour12: false
+            });
+            console.log('对应的北京时间：', chinaTimeString);
         }
     });
 
@@ -455,7 +477,7 @@
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 最后的发送步骤
+            // 最后发送的步骤
             const sendTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
             if (!sendTweetButton) throw new Error('未找到发送按钮');
             sendTweetButton.click();
