@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.2
+// @version      0.1.3
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
+// @match        https://x.com
 // @updateURL    https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @downloadURL  https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @grant        none
@@ -102,6 +103,16 @@
             font-family: inherit;
             line-height: 1.5;
         }
+
+        .scheduler-form .image-upload {
+            margin-bottom: 12px;
+        }
+
+        .scheduler-form .image-count {
+            color: rgb(83, 100, 113);
+            font-size: 13px;
+            margin-top: 4px;
+        }
     `;
     document.head.appendChild(style);
 
@@ -131,6 +142,10 @@
         <textarea id="scheduler-suffix" placeholder="#话题1
 #话题2
 #话题3"></textarea>
+
+        <label>选择图片（可多选，一帖至多一张）</label>
+        <input type="file" id="scheduler-images" multiple accept="image/*" class="image-upload">
+        <div id="image-count" class="image-count"></div>
 
         <button id="scheduler-generateBtn">生成定时推文</button>
     `;
@@ -198,24 +213,18 @@
                     return;
                 }
 
+                // 添加 tweetIndex 用于追踪当前是第几条推文
+                let tweetIndex = 0;
+
                 // 生成定时推文
                 for (let i = 0; i < tweets.length; i++) {
                     const tweetTime = new Date(startTime.getTime() + i * interval * 60000);
-
-                    // 组合推文内容时保持后缀的格式
                     const tweetContent = tweets[i] + '\n\n' + suffixLines;
 
-                    console.log('-------------------');
-                    console.log(`第 ${i + 1} 条推文:`);
-                    console.log('时间:', tweetTime.toLocaleString('zh-CN', {
-                        timeZone: 'Asia/Shanghai',
-                        hour12: false
-                    }));
-                    console.log('内容:\n', tweetContent);
-                    console.log('-------------------');
+                    tweetIndex = i; // 更新当前推文索引
 
                     try {
-                        await simulateScheduleTweet(tweetContent, tweetTime);
+                        await simulateScheduleTweet(tweetContent, tweetTime, tweetIndex);
                         await sleep(Math.floor(Math.random() * 301) + 1800);
                     } catch (error) {
                         console.error(`第 ${i + 1} 条推文发送失败:`, error);
@@ -236,8 +245,21 @@
         });
     }
 
+    // 添加图片上传处理逻辑
+    let selectedImages = [];
+
+    const imageInput = document.getElementById('scheduler-images');
+    const imageCount = document.getElementById('image-count');
+
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            selectedImages = Array.from(e.target.files);
+            imageCount.textContent = `已选择 ${selectedImages.length} 张图片`;
+        });
+    }
+
     // 模拟人工操作发布推文
-    async function simulateScheduleTweet(content, time) {
+    async function simulateScheduleTweet(content, time, tweetIndex) {
         try {
             // 1. 点击发推按钮
             const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
@@ -245,7 +267,24 @@
             tweetButton.click();
             await sleep(Math.floor(Math.random() * 201) + 800);
 
-            // 2. 填写内容
+            // 2. 如果有图片，先上传图片
+            if (selectedImages.length > 0) {
+                const imageIndex = tweetIndex % selectedImages.length; // tweetIndex 需要在外部定义
+                const imageInput = document.querySelector('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
+
+                if (!imageInput) throw new Error('未找到图片上传输入框');
+
+                // 创建 DataTransfer 对象并添加文件
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(selectedImages[imageIndex]);
+                imageInput.files = dataTransfer.files;
+
+                // 触发 change 事件
+                imageInput.dispatchEvent(new Event('change', { bubbles: true }));
+                await sleep(Math.floor(Math.random() * 201) + 1000);
+            }
+
+            // 3. 填写内容
             const editorDiv = document.querySelector('[data-testid="tweetTextarea_0"]');
             if (!editorDiv) throw new Error('未找到推文输入框');
 
@@ -308,13 +347,13 @@
 
             await sleep(Math.floor(Math.random() * 201) + 800);
 
-            // 3. 点击定时图标
+            // 4. 点击定时图标
             const scheduleIcon = document.querySelector('[data-testid="scheduleOption"]');
             if (!scheduleIcon) throw new Error('未找到定时图标');
             scheduleIcon.click();
-            await sleep(Math.floor(Math.random() * 201) + 800);
+            await sleep(Math.floor(Math.random() * 201) + 1200);
 
-            // 4. 设置日期和时间
+            // 5. 设置日期和时间
             // 获取所有选择器并按ID排序
             const selectors = Array.from(document.querySelectorAll('select[id^="SELECTOR_"]'))
                 .sort((a, b) => {
@@ -356,13 +395,15 @@
 
             await sleep(Math.floor(Math.random() * 201) + 800);
 
-            // 5. 点击确认按钮
+            // 6. 点击确认按钮
             const confirmButton = document.querySelector('[data-testid="scheduledConfirmationPrimaryAction"]');
             if (!confirmButton) throw new Error('未找到确认按钮');
             confirmButton.click();
             await sleep(Math.floor(Math.random() * 201) + 800);
 
-            // 6. 点击发送推文按钮
+            if (shouldStop) throw new Error('用户手动停止了操作');
+
+            // 最后的发送步骤
             const sendTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
             if (!sendTweetButton) throw new Error('未找到发送按钮');
             sendTweetButton.click();
