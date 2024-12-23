@@ -5,6 +5,7 @@
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
+// @match        https://x.com
 // @updateURL    https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @downloadURL  https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @grant        none
@@ -341,9 +342,11 @@
         try {
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 1. 等待并点击发推按钮
-            const tweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
-            tweetButton.click();
+            // 1. 检查发推前的编辑框状态
+            const initialTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
+            if (initialTweetButton && !initialTweetButton.disabled) {
+                throw new Error('请先清空编辑框内的内容再继续操作');
+            }
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
