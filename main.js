@@ -359,7 +359,7 @@
                 dataTransfer.items.add(selectedImages[imageIndex]);
                 imageInput.files = dataTransfer.files;
                 imageInput.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(500); // 给一些时间让图片上传
+                await sleep(300); // 给一些时间让图片上传
             }
 
             if (shouldStop) throw new Error('用户手动停止了操作');
@@ -414,7 +414,7 @@
                     });
                     editorDiv.dispatchEvent(keyupEvent);
                 }
-                await sleep(Math.floor(Math.random() * 81) + 20);
+                await sleep(5);
             }
 
             if (shouldStop) throw new Error('用户手动停止了操作');
@@ -457,7 +457,7 @@
                     select.value = value.toString();
                 }
                 select.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(Math.floor(Math.random() * 201) + 180);
+                await sleep(Math.floor(Math.random() * 50) + 10);
             };
 
             await setSelectValue(monthSelect, month);
