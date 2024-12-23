@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.4
+// @version      0.1.5
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
-// @match        https://x.com
 // @updateURL    https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @downloadURL  https://github.com/ozxslackin/handiFix/raw/main/main.js
 // @grant        none
@@ -323,53 +322,52 @@
         });
     }
 
-    // 修改模拟发推文函数，添加停止检查
+    // 添加一个等待元素出现的函数
+    async function waitForElement(selector, timeout = 5000) {
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            const element = document.querySelector(selector);
+            await sleep(100); // 等待100ms
+            if (element) {
+                return element;
+            }
+        }
+        throw new Error(`等待元素 ${selector} 超时`);
+    }
+
+    // 修改 simulateScheduleTweet 函数中的相关等待部分
     async function simulateScheduleTweet(content, time, tweetIndex) {
         try {
-            // 在每个主要步骤前检查是否应该停止
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 1. 点击发推按钮
-            const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
-            if (!tweetButton) throw new Error('未找到发推按钮');
+            // 1. 等待并点击发推按钮
+            const tweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
             tweetButton.click();
-            await sleep(Math.floor(Math.random() * 201) + 800);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 2. 如果有图片，先上传图片
+            // 2. 如果有图片，等待并上传图片
             if (selectedImages.length > 0) {
-                const imageIndex = tweetIndex % selectedImages.length; // tweetIndex 需要在外部定义
-                const imageInput = document.querySelector('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
+                const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
+                const imageIndex = tweetIndex % selectedImages.length;
 
-                if (!imageInput) throw new Error('未找到图片上传输入框');
-
-                // 创建 DataTransfer 对象并添加文件
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(selectedImages[imageIndex]);
                 imageInput.files = dataTransfer.files;
-
-                // 触发 change 事件
                 imageInput.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(Math.floor(Math.random() * 201) + 1000);
+                await sleep(500); // 给一些时间让图片上传
             }
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 3. 填写内容
-            const editorDiv = document.querySelector('[data-testid="tweetTextarea_0"]');
-            if (!editorDiv) throw new Error('未找到推文输入框');
-
-            // 聚焦编辑器
+            // 3. 等待并填写内容
+            const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
             editorDiv.focus();
-            await sleep(Math.floor(Math.random() * 121) + 80);
 
-            // 将内容分割成字符数组，特殊处理换行符
+            // 保持原有的打字模拟逻辑，因为这是为了模拟真实用户行为
             const chars = Array.from(content);
-
-            // 模拟键盘输入
             for (const char of chars) {
-                // 特殊处理换行符
                 if (char === '\n') {
                     const enterEvent = new KeyboardEvent('keydown', {
                         key: 'Enter',
@@ -413,22 +411,20 @@
                     });
                     editorDiv.dispatchEvent(keyupEvent);
                 }
-
                 await sleep(Math.floor(Math.random() * 81) + 20);
             }
 
-            await sleep(Math.floor(Math.random() * 201) + 800);
-
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 4. 点击定时图标
-            const scheduleIcon = document.querySelector('[data-testid="scheduleOption"]');
-            if (!scheduleIcon) throw new Error('未找到定时图标');
+            // 4. 等待并点击定时图标
+            const scheduleIcon = await waitForElement('[data-testid="scheduleOption"]');
             scheduleIcon.click();
-            await sleep(Math.floor(Math.random() * 201) + 1200);
 
-            // 5. 设置日期和时间
-            // 获取所有选择器并按ID排序
+            // 5. 等待时间选择器出现并设置时间
+            // 首先等待任意一个选择器出现，确保对话框已加载
+            await waitForElement('select[id^="SELECTOR_"]');
+
+            // 然后获取并排序所有选择器
             const selectors = Array.from(document.querySelectorAll('select[id^="SELECTOR_"]'))
                 .sort((a, b) => {
                     const numA = parseInt(a.id.split('_')[1]);
@@ -467,21 +463,15 @@
             await setSelectValue(hourSelect, hour);
             await setSelectValue(minuteSelect, minute);
 
-            await sleep(Math.floor(Math.random() * 201) + 800);
-
-            // 6. 点击确认按钮
-            const confirmButton = document.querySelector('[data-testid="scheduledConfirmationPrimaryAction"]');
-            if (!confirmButton) throw new Error('未找到确认按钮');
+            // 6. 等待并点击确认按钮
+            const confirmButton = await waitForElement('[data-testid="scheduledConfirmationPrimaryAction"]');
             confirmButton.click();
-            await sleep(Math.floor(Math.random() * 201) + 800);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 最后发送的步骤
-            const sendTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
-            if (!sendTweetButton) throw new Error('未找到发送按钮');
+            // 最后等待并点击发送按钮
+            const sendTweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
             sendTweetButton.click();
-            await sleep(Math.floor(Math.random() * 201) + 800);
 
             // 显示成功消息
             const options = {
