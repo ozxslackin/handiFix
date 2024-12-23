@@ -345,9 +345,19 @@
         try {
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 1. 点击发推按钮
-            const tweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
-            tweetButton.click();
+            // 1. 先找到并清空编辑框
+            const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
+            editorDiv.focus();
+
+            // 清空编辑框内容
+            editorDiv.innerHTML = '<div data-contents="true"><div class=""><div data-block="true"><div data-text="true"></div></div></div></div>';
+
+            // 触发清空事件
+            editorDiv.dispatchEvent(new InputEvent('input', {
+                bubbles: true,
+                cancelable: true,
+                inputType: 'deleteContent'
+            }));
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
@@ -364,11 +374,8 @@
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 3. 直接设置内容，不再模拟打字
-            const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
-            editorDiv.focus();
 
-            // 直接设置文本内容
+            // 3. 直接设置文本内容
             const textEvent = new InputEvent('textInput', {
                 bubbles: true,
                 cancelable: true,
@@ -390,7 +397,7 @@
                 `<div data-contents="true"><div class=""><div data-block="true"><div data-text="true">${line}</div></div></div></div>`
             ).join('');
 
-            // 触发 input 事件
+            // 触发必要的事件
             const inputEvent = new InputEvent('input', {
                 bubbles: true,
                 cancelable: true,
