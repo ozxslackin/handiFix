@@ -324,7 +324,7 @@
     }
 
     // 添加一个等待元素出现的函数
-    async function waitForElement(selector, timeout = 5000) {
+    async function waitForElement(selector, timeout = 10000) {
         const startTime = Date.now();
 
         while (Date.now() - startTime < timeout) {
@@ -352,7 +352,7 @@
 
             // 2. 如果有图片，等待并上传图片
             if (selectedImages.length > 0) {
-                const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
+                const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]', 60000);
                 const imageIndex = tweetIndex % selectedImages.length;
 
                 const dataTransfer = new DataTransfer();
@@ -475,6 +475,7 @@
             // 最后等待并点击发送按钮
             const sendTweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
             sendTweetButton.click();
+            await sleep(300);
 
             // 显示成功消息
             const options = {
