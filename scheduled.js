@@ -264,6 +264,20 @@
                     return;
                 }
 
+                // 找到编辑框
+                const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
+                editorDiv.focus();
+
+                // 清空编辑框内容
+                editorDiv.innerHTML = '<div data-contents="true"><div class=""><div data-block="true"><div data-text="true"></div></div></div></div>';
+
+                // 触发清空事件
+                await editorDiv.dispatchEvent(new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'deleteContent'
+                }));
+
                 // 添加 tweetIndex 用于追踪当前是第几条推文
                 let tweetIndex = 0;
 
@@ -274,22 +288,8 @@
 
                     tweetIndex = i; // 更新当前推文索引
 
-                    // 找到编辑框
-                    const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
-                    editorDiv.focus();
-
-                    // 清空编辑框内容
-                    editorDiv.innerHTML = '<div data-contents="true"><div class=""><div data-block="true"><div data-text="true"></div></div></div></div>';
-
-                    // 触发清空事件
-                    await editorDiv.dispatchEvent(new InputEvent('input', {
-                        bubbles: true,
-                        cancelable: true,
-                        inputType: 'deleteContent'
-                    }));
-
                     try {
-                        await simulateScheduleTweet(tweetContent, tweetTime, tweetIndex, editorDiv);
+                        await simulateScheduleTweet(tweetContent, tweetTime, tweetIndex);
                         await sleep(Math.floor(Math.random() * 301) + 1000);
                     } catch (error) {
                         if (error.message === '用户手动停止了操作') {
@@ -356,9 +356,8 @@
     }
 
     // 修改 simulateScheduleTweet 函数
-    async function simulateScheduleTweet(content, time, tweetIndex, editorDiv) {
+    async function simulateScheduleTweet(content, time, tweetIndex) {
         try {
-
             // 1. 如果有图片，快速上传
             if (selectedImages.length > 0) {
                 const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
@@ -366,12 +365,16 @@
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(selectedImages[imageIndex]);
                 imageInput.files = dataTransfer.files;
-                imageInput.dispatchEvent(new Event('change', { bubbles: true }));
+                await imageInput.dispatchEvent(new Event('change', { bubbles: true }));
+                await waitForElement('[data-testid="attachments"]'); // 等待附件上传完成
             }
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
             // 2. 直接设置文本内容
+            const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
+            editorDiv.focus();
+
             editorDiv.dispatchEvent(new InputEvent('textInput', {
                 bubbles: true,
                 cancelable: true,
@@ -400,12 +403,10 @@
             }));
 
             // 触发 change 事件
-            editorDiv.dispatchEvent(new Event('change', {
+            editorDiv.dispatchEvent(new InputEvent('change', {
                 bubbles: true,
                 cancelable: true
             }));
-
-            await sleep(300);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
