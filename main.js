@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.6
+// @version      0.1.7
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
@@ -261,6 +261,12 @@
                     return;
                 }
 
+                // 检查发推前的编辑框状态
+                const initialTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
+                if (initialTweetButton && !initialTweetButton.disabled) {
+                    throw new Error('请先清空编辑框内的内容再继续操作');
+                }
+
                 // 添加 tweetIndex 用于追踪当前是第几条推文
                 let tweetIndex = 0;
 
@@ -342,14 +348,6 @@
         try {
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 1. 检查发推前的编辑框状态
-            const initialTweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
-            if (initialTweetButton && !initialTweetButton.disabled) {
-                throw new Error('请先清空编辑框内的内容再继续操作');
-            }
-
-            if (shouldStop) throw new Error('用户手动停止了操作');
-
             // 2. 如果有图片，等待并上传图片
             if (selectedImages.length > 0) {
                 const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]', 60000);
@@ -358,10 +356,9 @@
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(selectedImages[imageIndex]);
                 imageInput.files = dataTransfer.files;
-                imageInput.dispatchEvent(new Event('change', { bubbles: true }));
+                await imageInput.dispatchEvent(new Event('change', { bubbles: true }));
+                await waitForElement('[data-testid="attachments"]'); // 等待附件上传完成
             }
-
-            await sleep(300);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
@@ -430,11 +427,7 @@
 
             // 然后获取并排序所有选择器
             const selectors = Array.from(document.querySelectorAll('select[id^="SELECTOR_"]'))
-                .sort((a, b) => {
-                    const numA = parseInt(a.id.split('_')[1]);
-                    const numB = parseInt(b.id.split('_')[1]);
-                    return numA - numB;
-                });
+                .sort((a, b) => parseInt(a.id.split('_')[1]) - parseInt(b.id.split('_')[1]));
 
             if (selectors.length < 5) {
                 throw new Error('未找到完整的时间选择器');
@@ -477,6 +470,9 @@
             const sendTweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
             sendTweetButton.click();
 
+            // 等待发送完成的标志
+            await waitForElementToDisappear('[data-testid="toolBar"] [role="progressbar"]');
+
             // 显示成功消息
             const options = {
                 timeZone: 'Asia/Shanghai',
@@ -503,5 +499,20 @@
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 添加新的辅助函数：等待元素消失
+    async function waitForElementToDisappear(selector, timeout = 60000) {
+        if (shouldStop) throw new Error('用户手动停止了操作');
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            const element = document.querySelector(selector);
+            if (!element) {
+                return true;
+            }
+            await sleep(300);
+        }
+        throw new Error(`等待元素 ${selector} 消失超时`);
     }
 })();

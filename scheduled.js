@@ -358,6 +358,8 @@
     // 修改 simulateScheduleTweet 函数
     async function simulateScheduleTweet(content, time, tweetIndex) {
         try {
+            if (shouldStop) throw new Error('用户手动停止了操作');
+
             // 1. 如果有图片，快速上传
             if (selectedImages.length > 0) {
                 const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
