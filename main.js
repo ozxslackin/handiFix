@@ -359,8 +359,9 @@
                 dataTransfer.items.add(selectedImages[imageIndex]);
                 imageInput.files = dataTransfer.files;
                 imageInput.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(300); // 给一些时间让图片上传
             }
+
+            await sleep(300);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
@@ -475,7 +476,6 @@
             // 最后等待并点击发送按钮
             const sendTweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
             sendTweetButton.click();
-            await sleep(300);
 
             // 显示成功消息
             const options = {
