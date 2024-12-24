@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之一键互动（随机版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.4
+// @version      0.1.5
 // @description  X站帖子自动化互动（点赞->转发->评论）
 // @author       ozxslackin
 // @match        https://x.com/*
@@ -371,20 +371,22 @@
                 await sleep(Math.floor(Math.random() * 201) + 300);
             }
 
-            // 2. 根据模式执行不同操作
-            if (interactionMode === 'comment') {
-                // 转发和评论流程
-                const retweetBtn = article.querySelector('[data-testid="retweet"]');
-                if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
-                    await clickButton(retweetBtn);
-                    await sleep(Math.floor(Math.random() * 201) + 300);
+            // 2. 转发
+            const retweetBtn = article.querySelector('[data-testid="retweet"]');
+            if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
+                await clickButton(retweetBtn);
+                await sleep(Math.floor(Math.random() * 201) + 300);
 
-                    const retweetOption = document.querySelector('[data-testid="retweetConfirm"]');
-                    if (retweetOption) {
-                        await clickButton(retweetOption);
-                        await sleep(Math.floor(Math.random() * 201) + 800);
-                    }
+                const retweetOption = document.querySelector('[data-testid="retweetConfirm"]');
+                if (retweetOption) {
+                    await clickButton(retweetOption);
+                    await sleep(Math.floor(Math.random() * 201) + 800);
                 }
+            }
+
+            // 3. 根据模式执行不同操作
+            if (interactionMode === 'comment') {
+                // 评论
                 await addComment(article);
             } else {
                 // 引用流程

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之定时文本（极速版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.1
+// @version      0.1.2
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
@@ -141,7 +141,7 @@
         <input type="datetime-local" id="scheduler-startTime">
 
         <label>发布间隔（分钟）</label>
-        <input type="number" id="scheduler-interval" value="5">
+        <input type="number" id="scheduler-interval" value="1">
 
         <label>推文内容（两个换行分隔不同推文）</label>
         <textarea id="scheduler-content" placeholder="输入推文内容...

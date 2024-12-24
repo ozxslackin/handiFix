@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         守护书局人之一键互动(顺序版)
+// @name         守护书局人之一键互动（顺序版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.1
+// @version      0.1.2
 // @description  X站帖子自动化互动（点赞->转发->评论），按顺序执行评论并在使用后删除
 // @author       ozxslackin
 // @match        https://x.com/*
@@ -13,7 +13,7 @@
 (function() {
     'use strict';
 
-    let interactionMode = localStorage.getItem('ozxInteractionMode') || 'comment'; // 'comment' 或 'quote'
+    let interactionMode = localStorage.getItem('ozxInteractionMode') || 'comment'; // 'comment', 'quote' 或 'retweet'
 
     // 保存模式设置的函数
     function saveInteractionMode(mode) {
@@ -129,7 +129,6 @@
             top: 70px;
             z-index: 9999;
             padding: 8px 16px;
-            background: #794bc4;
             color: white;
             border: none;
             border-radius: 9999px;
@@ -141,6 +140,9 @@
             gap: 6px;
         }
 
+        .ozx-mode-toggle-btn[data-mode="comment"] { background: #1d9bf0; }
+        .ozx-mode-toggle-btn[data-mode="quote"] { background: #794bc4; }
+        .ozx-mode-toggle-btn[data-mode="retweet"] { background: #00ba7c; }
     `;
     document.head.appendChild(style);
 
@@ -353,48 +355,28 @@
 
     // 处理互动逻辑
     async function handleInteraction(article) {
-        if (commentConfig.comments.length === 0) {
-            alert('请先设置评论文本！');
-            return;
-        }
-
         try {
             // 1. 点赞
             const likeBtn = article.querySelector('[data-testid="like"]');
             if (likeBtn && !likeBtn.querySelector('[data-testid="liked"]')) {
                 await clickButton(likeBtn);
-                await sleep(Math.floor(Math.random() * 201) + 300);
+                await sleep(Math.floor(Math.random() * 201) + 100);
             }
 
-            // 2. 根据模式执行不同操作
-            if (interactionMode === 'comment') {
-                // 转发和评论流程
-                const retweetBtn = article.querySelector('[data-testid="retweet"]');
-                if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
-                    await clickButton(retweetBtn);
-                    await sleep(Math.floor(Math.random() * 201) + 300);
+            // 2. 转发
+            await handleRepost(article);
 
-                    const retweetOption = document.querySelector('[data-testid="retweetConfirm"]');
-                    if (retweetOption) {
-                        await clickButton(retweetOption);
-                        await sleep(Math.floor(Math.random() * 201) + 800);
-                    }
-                }
-                await addComment(article);
-            } else {
-                // 引用流程
-                const retweetBtn = article.querySelector('[data-testid="retweet"]');
-                if (retweetBtn) {
-                    await clickButton(retweetBtn);
-                    await sleep(Math.floor(Math.random() * 201) + 300);
+            // 3. 根据模式执行不同操作
+            switch (interactionMode) {
+                case 'comment':
+                    // 转发后评论
+                    await addComment(article);
+                    break;
 
-                    const quoteOption = document.querySelector('a[role="menuitem"]');
-                    if (quoteOption) {
-                        await clickButton(quoteOption);
-                        await sleep(Math.floor(Math.random() * 201) + 800);
-                        await addQuote();
-                    }
-                }
+                case 'quote':
+                    // 执行引用
+                    await addQuote(article);
+                    break;
             }
         } catch (error) {
             console.error('互动过程出错:', error);
@@ -402,7 +384,20 @@
         }
     }
 
-    // 修改添加评论/引用的函数，���用顺序执行而不是随机选择
+    // 添加一个处理转发的辅助函数
+    async function handleRepost(article) {
+        const retweetBtn = article.querySelector('[data-testid="retweet"]');
+        if (retweetBtn && !retweetBtn.querySelector('[data-testid="retweeted"]')) {
+            await clickButton(retweetBtn);
+
+            const retweetOption = await waitForElement(document, '[data-testid="retweetConfirm"]');
+            if (retweetOption) {
+                await clickButton(retweetOption);
+            }
+        }
+    }
+
+    // 修改评论函数
     async function addComment(article) {
         if (commentConfig.comments.length === 0) {
             alert('没有可用的评论文本了，请添加新的评论！');
@@ -410,80 +405,81 @@
             return;
         }
 
-        // 获取当前索引的评论
-        const currentComment = commentConfig.comments[commentConfig.currentIndex];
-
-        // 处理后缀
-        const suffixes = commentConfig.suffixes
-            .map(line => line.trim() + ' ')
-            .join('\n');
-
-        const fullComment = `${currentComment}\n\n${suffixes}`;
-
         // 点击回复按钮
-        const replyBtn = article.querySelector('[data-testid="reply"]');
+        const replyBtn = await waitForElement(article, '[data-testid="reply"]');
         await clickButton(replyBtn);
-        await sleep(Math.floor(Math.random() * 201) + 800);
 
-        // 找到评论输入框
-        const editor = document.querySelector('[data-testid="tweetTextarea_0"]');
-        if (!editor) throw new Error('未找到评论输入框');
+        // 等待并找到评论输入框
+        const editor = await waitForElement(document, '[data-testid="tweetTextarea_0"]');
 
-        // 输入评论内容
-        editor.focus();
-        await simulateTyping(editor, fullComment);
-        await sleep(Math.floor(Math.random() * 201) + 300);
+        // 获取要发送的文本
+        const fullComment = getFormattedText();
 
-        // 点击发送按钮
-        const sendBtn = document.querySelector('[data-testid="tweetButton"]');
-        if (!sendBtn) throw new Error('未找到发送按钮');
-        await clickButton(sendBtn);
+        // 使用通用函数处理输入和发送
+        await inputAndSendText(editor, fullComment);
 
-        // 删除已使用的评论并更新存储
-        commentConfig.comments.splice(commentConfig.currentIndex, 1);
-
-        // 如果所有评论都已使用，重置索引并提醒用户
-        if (commentConfig.comments.length === 0) {
-            commentConfig.currentIndex = 0;
-            alert('所有评论已用完，请添加新的评论！');
-            form.style.display = 'block';
-        } else {
-            // 如果当前索引超出范围，重置为0
-            if (commentConfig.currentIndex >= commentConfig.comments.length) {
-                commentConfig.currentIndex = 0;
-            }
-        }
-
-        localStorage.setItem('commentConfig', JSON.stringify(commentConfig));
+        // 更新评论配置
+        updateCommentConfig();
     }
 
-    // 修改引用函数，使用顺序执行
-    async function addQuote() {
+    // 修改引用函数
+    async function addQuote(article) {
         if (commentConfig.comments.length === 0) {
             alert('没有可用的评论文本了，请添加新的评论！');
             form.style.display = 'block';
             return;
         }
 
+        const retweetBtn = await waitForElement(article, '[data-testid="unretweet"]');
+        if (retweetBtn) {
+            await clickButton(retweetBtn);
+
+            const quoteOption = await waitForElement(document, 'a[role="menuitem"]');
+            if (quoteOption) {
+                await clickButton(quoteOption);
+
+                // 等待并找到引用输入框
+                const editor = await waitForElement(document, '[data-testid="tweetTextarea_0"]');
+
+                // 获取要发送的文本
+                const fullQuote = getFormattedText();
+
+                // 使用通用函数处理输入和发送
+                await inputAndSendText(editor, fullQuote);
+
+                // 更新评论配置
+                updateCommentConfig();
+            }
+        }
+    }
+
+    // 添加新的通用输入发送函数
+    async function inputAndSendText(editor, text) {
+        if (!editor) throw new Error('未找到输入框');
+
+        // 输入评论内容
+        editor.focus();
+        await simulateTyping(editor, text);
+
+        // 点击发送按钮
+        const sendBtn = await waitForElement(document, '[data-testid="tweetButton"]');
+        if (!sendBtn) throw new Error('未找到发送按钮');
+        await clickButton(sendBtn);
+    }
+
+    // 添加获取格式化文本的辅助函数
+    function getFormattedText() {
         const currentComment = commentConfig.comments[commentConfig.currentIndex];
         const suffixes = commentConfig.suffixes
             .map(line => line.trim() + ' ')
             .join('\n');
 
-        const fullQuote = `${currentComment}\n\n${suffixes}`;
+        return `${currentComment}\n\n${suffixes}`;
+    }
 
-        const editor = document.querySelector('[data-testid="tweetTextarea_0"]');
-        if (!editor) throw new Error('未找到引用输入框');
-
-        editor.focus();
-        await simulateTyping(editor, fullQuote);
-        await sleep(Math.floor(Math.random() * 201) + 300);
-
-        const sendBtn = document.querySelector('[data-testid="tweetButton"]');
-        if (!sendBtn) throw new Error('未找到发送按钮');
-        await clickButton(sendBtn);
-
-        // 删除已使用的评论并更新存储
+    // 添加更新评论配置的辅助函数
+    function updateCommentConfig() {
+        // 更新评论配置
         commentConfig.comments.splice(commentConfig.currentIndex, 1);
 
         if (commentConfig.comments.length === 0) {
@@ -544,7 +540,7 @@
                     cancelable: true
                 }));
             }
-            await sleep(Math.floor(Math.random() * 81) + 20);
+            await sleep(Math.floor(Math.random() * 51) + 10);
         }
     }
 
@@ -555,6 +551,20 @@
         await sleep(Math.floor(Math.random() * 201) + 300);
     }
 
+    // 添加一个等待元素出现的函数
+    async function waitForElement(parent, selector, timeout = 3000) {
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            const cur = parent.querySelector(selector);
+            await sleep(120); // 等待120ms
+            if (cur) {
+                return cur;
+            }
+        }
+        throw new Error(`等待元素 ${selector} 超时`);
+    }
+
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -562,13 +572,27 @@
     // 在创建评论配置按钮的部分后添加模式切换按钮
     const modeToggleBtn = document.createElement('button');
     modeToggleBtn.className = 'ozx-mode-toggle-btn';
+    modeToggleBtn.dataset.mode = interactionMode;
     modeToggleBtn.innerHTML = `${interactionMode === 'comment' ? '💬' : '🔄'}`;
     document.body.appendChild(modeToggleBtn);
 
     // 添加模式切换按钮的点击事件
     modeToggleBtn.addEventListener('click', () => {
-        const newMode = interactionMode === 'comment' ? 'quote' : 'comment';
+        const modes = ['comment', 'quote', 'retweet'];
+        const currentIndex = modes.indexOf(interactionMode);
+        const newMode = modes[(currentIndex + 1) % modes.length];
+
         saveInteractionMode(newMode);
-        modeToggleBtn.innerHTML = `${newMode === 'comment' ? '💬' : '🔄'}`;
+        modeToggleBtn.dataset.mode = newMode;
+        modeToggleBtn.innerHTML = getModeBtnIcon(newMode);
     });
+
+    function getModeBtnIcon(mode) {
+        switch (mode) {
+            case 'comment': return '💬';
+            case 'quote': return '✍️';
+            case 'retweet': return '🔄';
+            default: return '💬';
+        }
+    }
 })();
