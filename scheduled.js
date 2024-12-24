@@ -353,7 +353,7 @@
             editorDiv.innerHTML = '<div data-contents="true"><div class=""><div data-block="true"><div data-text="true"></div></div></div></div>';
 
             // 触发清空事件
-            editorDiv.dispatchEvent(new InputEvent('input', {
+            await editorDiv.dispatchEvent(new InputEvent('input', {
                 bubbles: true,
                 cancelable: true,
                 inputType: 'deleteContent'
@@ -414,7 +414,7 @@
             });
             editorDiv.dispatchEvent(changeEvent);
 
-            await sleep(100);
+            await sleep(300);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
