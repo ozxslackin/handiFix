@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之定时文本（极速版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.2
+// @version      0.1.3
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
