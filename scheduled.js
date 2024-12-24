@@ -274,9 +274,23 @@
 
                     tweetIndex = i; // 更新当前推文索引
 
+                    // 找到编辑框
+                    const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
+                    editorDiv.focus();
+
+                    // 清空编辑框内容
+                    editorDiv.innerHTML = '<div data-contents="true"><div class=""><div data-block="true"><div data-text="true"></div></div></div></div>';
+
+                    // 触发清空事件
+                    await editorDiv.dispatchEvent(new InputEvent('input', {
+                        bubbles: true,
+                        cancelable: true,
+                        inputType: 'deleteContent'
+                    }));
+
                     try {
-                        await simulateScheduleTweet(tweetContent, tweetTime, tweetIndex);
-                        await sleep(Math.floor(Math.random() * 301) + 1800);
+                        await simulateScheduleTweet(tweetContent, tweetTime, tweetIndex, editorDiv);
+                        await sleep(Math.floor(Math.random() * 301) + 1000);
                     } catch (error) {
                         if (error.message === '用户手动停止了操作') {
                             break;
@@ -328,6 +342,7 @@
 
     // 添加一个等待元素出现的函数
     async function waitForElement(selector, timeout = 10000) {
+        if (shouldStop) throw new Error('用户手动停止了操作');
         const startTime = Date.now();
 
         while (Date.now() - startTime < timeout) {
@@ -341,29 +356,12 @@
     }
 
     // 修改 simulateScheduleTweet 函数
-    async function simulateScheduleTweet(content, time, tweetIndex) {
+    async function simulateScheduleTweet(content, time, tweetIndex, editorDiv) {
         try {
-            if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 1. 先找到并清空编辑框
-            const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
-            editorDiv.focus();
-
-            // 清空编辑框内容
-            editorDiv.innerHTML = '<div data-contents="true"><div class=""><div data-block="true"><div data-text="true"></div></div></div></div>';
-
-            // 触发清空事件
-            await editorDiv.dispatchEvent(new InputEvent('input', {
-                bubbles: true,
-                cancelable: true,
-                inputType: 'deleteContent'
-            }));
-
-            if (shouldStop) throw new Error('用户手动停止了操作');
-
-            // 2. 如果有图片，快速上传
+            // 1. 如果有图片，快速上传
             if (selectedImages.length > 0) {
-                const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]', 60000);
+                const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]');
                 const imageIndex = tweetIndex % selectedImages.length;
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(selectedImages[imageIndex]);
@@ -371,27 +369,22 @@
                 imageInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            await sleep(300);
-
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-
-            // 3. 直接设置文本内容
-            const textEvent = new InputEvent('textInput', {
+            // 2. 直接设置文本内容
+            editorDiv.dispatchEvent(new InputEvent('textInput', {
                 bubbles: true,
                 cancelable: true,
                 data: content
-            });
-            editorDiv.dispatchEvent(textEvent);
+            }));
 
             // 触发 beforeinput 事件
-            const beforeInputEvent = new InputEvent('beforeinput', {
+            editorDiv.dispatchEvent(new InputEvent('beforeinput', {
                 bubbles: true,
                 cancelable: true,
                 inputType: 'insertText',
                 data: content
-            });
-            editorDiv.dispatchEvent(beforeInputEvent);
+            }));
 
             // 设置内容
             editorDiv.innerHTML = content.split('\n').map(line =>
@@ -399,30 +392,28 @@
             ).join('');
 
             // 触发必要的事件
-            const inputEvent = new InputEvent('input', {
+            editorDiv.dispatchEvent(new InputEvent('input', {
                 bubbles: true,
                 cancelable: true,
                 inputType: 'insertText',
                 data: content
-            });
-            editorDiv.dispatchEvent(inputEvent);
+            }));
 
             // 触发 change 事件
-            const changeEvent = new Event('change', {
+            editorDiv.dispatchEvent(new Event('change', {
                 bubbles: true,
                 cancelable: true
-            });
-            editorDiv.dispatchEvent(changeEvent);
+            }));
 
             await sleep(300);
 
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 4. 点击定时图标
+            // 3. 点击定时图标
             const scheduleIcon = await waitForElement('[data-testid="scheduleOption"]');
             scheduleIcon.click();
 
-            // 5. 等待时间选择器出现并设置时间
+            // 4. 等待时间选择器出现并设置时间
             // 首先等待任意一个选择器出现，确保对话框已加载
             await waitForElement('select[id^="SELECTOR_"]');
 
@@ -459,7 +450,7 @@
             await setSelectValue(hourSelect, hour);
             await setSelectValue(minuteSelect, minute);
 
-            // 6. 确认并发送
+            // 5. 确认并发送
             const confirmButton = await waitForElement('[data-testid="scheduledConfirmationPrimaryAction"]');
             confirmButton.click();
 
@@ -468,6 +459,9 @@
             // 最后等待并点击发送按钮
             const sendTweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
             sendTweetButton.click();
+
+            // 等待发送完成的标志
+            await waitForElementToDisappear('[data-testid="toolBar"] [role="progressbar"]');
 
             // 显示成功消息
             const options = {
@@ -495,5 +489,20 @@
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 添加新的辅助函数：等待元素消失
+    async function waitForElementToDisappear(selector, timeout = 60000) {
+        if (shouldStop) throw new Error('用户手动停止了操作');
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            const element = document.querySelector(selector);
+            if (!element) {
+                return true;
+            }
+            await sleep(300);
+        }
+        throw new Error(`等待元素 ${selector} 消失超时`);
     }
 })();
