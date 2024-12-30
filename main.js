@@ -348,7 +348,20 @@
         try {
             if (shouldStop) throw new Error('用户手动停止了操作');
 
-            // 2. 如果有图片，等待并上传图片
+            // 1. 检查是否在编辑页面，如果不在则等待并点击浮动按钮
+            let editorDiv = document.querySelector('[data-testid="tweetTextarea_0"]');
+            if (!editorDiv) {
+                // 等待浮动按钮出现（最多等待10秒）
+                const floatingButton = await waitForElement('a[data-testid="FloatingActionButtons_Tweet_Button"]');
+                floatingButton.click();
+
+                // 等待编辑框出现
+                editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
+            }
+
+            if (shouldStop) throw new Error('用户手动停止了操作');
+
+            // 2. 处理图片上传
             if (selectedImages.length > 0) {
                 const imageInput = await waitForElement('input[type="file"][accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime"]', 60000);
                 const imageIndex = tweetIndex % selectedImages.length;
@@ -357,143 +370,143 @@
                 dataTransfer.items.add(selectedImages[imageIndex]);
                 imageInput.files = dataTransfer.files;
                 await imageInput.dispatchEvent(new Event('change', { bubbles: true }));
-                await waitForElement('[data-testid="attachments"]'); // 等待附件上传完成
+                await waitForElement('[data-testid="attachments"]');
             }
 
-            if (shouldStop) throw new Error('用户手动停止了操作');
+            // 3. 填写推文内容
+            editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
+            await simulateTyping(editorDiv, content);
 
-            // 3. 等待并填写内容
-            const editorDiv = await waitForElement('[data-testid="tweetTextarea_0"]');
-            editorDiv.focus();
-
-            // 保持原有的打字模拟逻辑，因为这是为了模拟真实用户行为
-            const chars = Array.from(content);
-            for (const char of chars) {
-                if (char === '\n') {
-                    const enterEvent = new KeyboardEvent('keydown', {
-                        key: 'Enter',
-                        code: 'Enter',
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    editorDiv.dispatchEvent(enterEvent);
-                    document.execCommand('insertLineBreak');
-                    editorDiv.dispatchEvent(new KeyboardEvent('keyup', {
-                        key: 'Enter',
-                        code: 'Enter',
-                        bubbles: true,
-                        cancelable: true
-                    }));
-                } else {
-                    // 普通字符的处理
-                    const keydownEvent = new KeyboardEvent('keydown', {
-                        key: char,
-                        code: `Key${char.toUpperCase()}`,
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    editorDiv.dispatchEvent(keydownEvent);
-
-                    const inputEvent = new InputEvent('input', {
-                        bubbles: true,
-                        cancelable: true,
-                        data: char,
-                        inputType: 'insertText'
-                    });
-                    editorDiv.dispatchEvent(inputEvent);
-
-                    document.execCommand('insertText', false, char);
-
-                    const keyupEvent = new KeyboardEvent('keyup', {
-                        key: char,
-                        code: `Key${char.toUpperCase()}`,
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    editorDiv.dispatchEvent(keyupEvent);
-                }
-                await sleep(5);
-            }
-
-            if (shouldStop) throw new Error('用户手动停止了操作');
-
-            // 4. 等待并点击定时图标
+            // 4. 点击定时图标
             const scheduleIcon = await waitForElement('[data-testid="scheduleOption"]');
             scheduleIcon.click();
+            await sleep(500);
 
-            // 5. 等待时间选择器出现并设置时间
-            // 首先等待任意一个选择器出现，确保对话框已加载
-            await waitForElement('select[id^="SELECTOR_"]');
-
-            // 然后获取并排序所有选择器
-            const selectors = Array.from(document.querySelectorAll('select[id^="SELECTOR_"]'))
-                .sort((a, b) => parseInt(a.id.split('_')[1]) - parseInt(b.id.split('_')[1]));
-
-            if (selectors.length < 5) {
-                throw new Error('未找到完整的时间选择器');
+            // 5. 设置时间
+            // 检测是移动端还是桌面端
+            const isMobile = await checkIfMobile();
+            if (isMobile) {
+                await setMobileScheduleTime(time);
+            } else {
+                await setDesktopScheduleTime(time);
             }
 
-            // 按顺序分配选择器（月、日、年、时、分）
-            const [monthSelect, daySelect, yearSelect, hourSelect, minuteSelect] = selectors;
-
-            // 设置择器的值
-            const month = (time.getMonth() + 1).toString();
-            const day = time.getDate().toString();
-            const year = time.getFullYear().toString();
-            const hour = time.getHours();
-            const minute = time.getMinutes();
-
-            // 模拟选择操作
-            const setSelectValue = async (select, value) => {
-                if (select === minuteSelect) {
-                    select.value = value;
-                } else {
-                    select.value = value.toString();
-                }
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(Math.floor(Math.random() * 50) + 10);
-            };
-
-            await setSelectValue(monthSelect, month);
-            await setSelectValue(daySelect, day);
-            await setSelectValue(yearSelect, year);
-            await setSelectValue(hourSelect, hour);
-            await setSelectValue(minuteSelect, minute);
-
-            // 6. 等待并点击确认按钮
+            // 6. 点击确认和发送
             const confirmButton = await waitForElement('[data-testid="scheduledConfirmationPrimaryAction"]');
             confirmButton.click();
+            await sleep(500);
 
-            if (shouldStop) throw new Error('用户手动停止了操作');
+            // 根据平台选择不同的发送按钮
+            const tweetButton = isMobile ?
+                await waitForElement('[data-testid="tweetButton"]') :
+                await waitForElement('[data-testid="tweetButtonInline"]');
+            tweetButton.click();
 
-            // 最后等待并点击发送按钮
-            const sendTweetButton = await waitForElement('[data-testid="tweetButtonInline"]');
-            sendTweetButton.click();
-
-            // 等待发送完成的标志
             await waitForElementToDisappear('[data-testid="toolBar"] [role="progressbar"]');
 
-            // 显示成功消息
-            const options = {
-                timeZone: 'Asia/Shanghai',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            };
-            const chinaTimeString = time.toLocaleString('zh-CN', options);
-            console.log(`成功设置定时推文：${chinaTimeString}`);
+            // 记录成功信息
+            logScheduleSuccess(time);
+
+            // 确保回到主页面
+            await ensureReturnToHome();
 
         } catch (error) {
-            if (error.message === '用户手动停止了操作') {
-                console.log('操作被用户终止');
-            } else {
-                console.error('设置定时推文失败:', error.message);
-                alert(`设置定时推文失败: ${error.message}`);
+            handleScheduleError(error);
+        }
+    }
+
+    // 新增：确保返回主页面的函数
+    async function ensureReturnToHome() {
+        try {
+            // 检查是否已经在主页
+            const homeButton = await waitForElement('a[data-testid="AppTabBar_Home_Link"]');
+            if (homeButton) {
+                // 如果不在主页（通过检查URL或其他标志），则点击主页按钮
+                const currentPath = window.location.pathname;
+                if (currentPath !== '/home' && currentPath !== '/') {
+                    homeButton.click();
+                    await sleep(1000);
+                }
             }
-            throw error;
+
+            // 等待浮动按钮重新出现（为下一次发送做准备）
+            await waitForElement('a[data-testid="FloatingActionButtons_Tweet_Button"]');
+        } catch (error) {
+            console.warn('返回主页面时出现问题:', error);
+            // 不抛出错误，让脚本继续运行
+        }
+    }
+
+    // 新增：检查是否为移动端
+    async function checkIfMobile() {
+        try {
+            // 通过检查日期输入框来判断是否为移动端
+            const dateInput = await waitForElement('input[type="date"]');
+            return !!dateInput;
+        } catch {
+            return false;
+        }
+    }
+
+    // 新增：移动端时间设置
+    async function setMobileScheduleTime(time) {
+        // 格式化日期和时间
+        const dateStr = time.toISOString().split('T')[0];
+        const timeStr = time.toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        // 设置日期
+        const dateInput = await waitForElement('input[type="date"]');
+        dateInput.value = dateStr;
+        dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await sleep(200);
+
+        // 设置时间
+        const timeInput = await waitForElement('input[type="time"]');
+        timeInput.value = timeStr;
+        timeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await sleep(200);
+    }
+
+    // 新增：桌面端时间设置
+    async function setDesktopScheduleTime(time) {
+        const selectors = Array.from(document.querySelectorAll('select[id^="SELECTOR_"]'))
+            .sort((a, b) => parseInt(a.id.split('_')[1]) - parseInt(b.id.split('_')[1]));
+
+        if (selectors.length < 5) {
+            throw new Error('未找到完整的时间选择器');
+        }
+
+        const [monthSelect, daySelect, yearSelect, hourSelect, minuteSelect] = selectors;
+
+        // 设置各个选择器的值
+        await setSelectValue(monthSelect, (time.getMonth() + 1).toString());
+        await setSelectValue(daySelect, time.getDate().toString());
+        await setSelectValue(yearSelect, time.getFullYear().toString());
+        await setSelectValue(hourSelect, time.getHours());
+        await setSelectValue(minuteSelect, time.getMinutes());
+    }
+
+    // 辅助函数：设置选择器值
+    async function setSelectValue(select, value) {
+        select.value = value.toString();
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        await sleep(Math.floor(Math.random() * 50) + 10);
+    }
+
+    // 辅助函数：模拟打字
+    async function simulateTyping(element, text) {
+        const chars = Array.from(text);
+        for (const char of chars) {
+            if (char === '\n') {
+                await simulateEnterKey(element);
+            } else {
+                await simulateCharacterInput(element, char);
+            }
+            await sleep(5);
         }
     }
 
@@ -514,5 +527,87 @@
             await sleep(300);
         }
         throw new Error(`等待元素 ${selector} 消失超时`);
+    }
+
+    // 辅助函数：模拟回车键
+    async function simulateEnterKey(element) {
+        element.focus();
+
+        const enterEvent = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            bubbles: true,
+            cancelable: true
+        });
+        element.dispatchEvent(enterEvent);
+
+        document.execCommand('insertLineBreak');
+
+        element.dispatchEvent(new KeyboardEvent('keyup', {
+            key: 'Enter',
+            code: 'Enter',
+            bubbles: true,
+            cancelable: true
+        }));
+    }
+
+    // 辅助函数：模拟单个字符输入
+    async function simulateCharacterInput(element, char) {
+        element.focus();
+
+        // 按键按下事件
+        const keydownEvent = new KeyboardEvent('keydown', {
+            key: char,
+            code: `Key${char.toUpperCase()}`,
+            bubbles: true,
+            cancelable: true
+        });
+        element.dispatchEvent(keydownEvent);
+
+        // 输入事件
+        const inputEvent = new InputEvent('input', {
+            bubbles: true,
+            cancelable: true,
+            data: char,
+            inputType: 'insertText'
+        });
+        element.dispatchEvent(inputEvent);
+
+        // 执行插入文本命令
+        document.execCommand('insertText', false, char);
+
+        // 按键抬起事件
+        const keyupEvent = new KeyboardEvent('keyup', {
+            key: char,
+            code: `Key${char.toUpperCase()}`,
+            bubbles: true,
+            cancelable: true
+        });
+        element.dispatchEvent(keyupEvent);
+    }
+
+    // 还需要添加成功记录和错误处理函数
+    function logScheduleSuccess(time) {
+        const options = {
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        };
+        const chinaTimeString = time.toLocaleString('zh-CN', options);
+        console.log(`成功设置定时推文：${chinaTimeString}`);
+    }
+
+    function handleScheduleError(error) {
+        if (error.message === '用户手动停止了操作') {
+            console.log('操作被用户终止');
+        } else {
+            console.error('设置定时推文失败:', error.message);
+            alert(`设置定时推文失败: ${error.message}`);
+        }
+        throw error;
     }
 })();
