@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之一键互动（顺序版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.2
+// @version      0.1.3
 // @description  X站帖子自动化互动（点赞->转发->评论），按顺序执行评论并在使用后删除
 // @author       ozxslackin
 // @match        https://x.com/*
@@ -573,7 +573,7 @@
     const modeToggleBtn = document.createElement('button');
     modeToggleBtn.className = 'ozx-mode-toggle-btn';
     modeToggleBtn.dataset.mode = interactionMode;
-    modeToggleBtn.innerHTML = `${interactionMode === 'comment' ? '💬' : '🔄'}`;
+    modeToggleBtn.innerHTML = `${getModeBtnIcon(interactionMode)}`;
     document.body.appendChild(modeToggleBtn);
 
     // 添加模式切换按钮的点击事件
