@@ -1,14 +1,13 @@
 // ==UserScript==
 // @name         守护书局人之定时文本（极速版）
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.3
+// @version      0.1.4
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
 // @match        https://x.com
 // @updateURL    https://github.com/ozxslackin/handiFix/raw/main/scheduled.js
 // @downloadURL  https://github.com/ozxslackin/handiFix/raw/main/scheduled.js
-// @grant        none
 // @grant        GM_notification
 // @grant        window.focus
 // @noframes
@@ -178,8 +177,8 @@
         const daysToSaturday = (6 - now.getDay() + 7) % 7;
         const nextSaturday = new Date(now.getTime() + daysToSaturday * 24 * 60 * 60 * 1000);
 
-        // 设置为晚上8点，并根据时区调整
-        nextSaturday.setHours(20, 0, 0, 0);
+        // 设置为晚上6点，并根据时区调整
+        nextSaturday.setHours(18, 0, 0, 0);
         nextSaturday.setMinutes(nextSaturday.getMinutes() - diffMinutes);
 
         return nextSaturday;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         守护书局人之定时文本
 // @namespace    https://github.com/ozxslackin/handiFix
-// @version      0.1.7
+// @version      0.1.8
 // @description  批量创建X定时文本
 // @author       ozxslackin
 // @match        https://x.com/home
@@ -175,8 +175,8 @@
         const daysToSaturday = (6 - now.getDay() + 7) % 7;
         const nextSaturday = new Date(now.getTime() + daysToSaturday * 24 * 60 * 60 * 1000);
 
-        // 设置为晚上8点，并根据时区调整
-        nextSaturday.setHours(20, 0, 0, 0);
+        // 设置为晚上6点，并根据时区调整
+        nextSaturday.setHours(18, 0, 0, 0);
         nextSaturday.setMinutes(nextSaturday.getMinutes() - diffMinutes);
 
         return nextSaturday;
